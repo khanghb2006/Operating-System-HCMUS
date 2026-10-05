@@ -57,52 +57,67 @@ found(char *path) {
 }
 
 // Recursively walk the tree rooted at path , calling found() for every named
-static void 
-find (char *path , char *name) {
-	char buffer[512] , *ptr;
-	int fd;
-	struct dirent de; // one directory entry 
-	struct stat st; // file info : type , size
+void 
+find(char* path, char* target) {
+    int fd;
+    struct stat st;
+    struct dirent de;
+    char child[521];
 
-	if ((fd = open(path , O_RDONLY)) < 0) {
-		fprintf(2 , "find : cannot open %s\n" , path);
-		return;
-	}
-	if (fstat(fd , &st) < 0) {
-		fprintf(2 , "find : cannot stat %s\n" , path);
-		close(fd);
-		return;
-	}
+    fd = open(path, O_RDONLY);
 
-	// Check the name before descending
-	if (strcmp(basename(path) , name) == 0)
-		found(path);
+    if(fd < 0) {
+        fprintf(2, "find: cannot open %s\n", path);
+        return;
+    }
 
-	if (st.type == T_DIR) {
-		if (strlen(path) + 1 + DIRSIZ + 1 > sizeof(buffer)) {
-			fprintf(2 , "find : path too long: %s\n" , path);
-			close(fd);
-			return;
-		}
+    if(fstat(fd, &st) < 0) {
+        fprintf(2, "find: cannot stat %s\n", path);
+        close(fd);
+        return;
+    }
 
-		strcpy(buffer , path);
-		ptr = buffer + strlen(buffer);
-		*(ptr++) = '/';
+    if((st.type == T_FILE || st.type == T_DIR) && strcmp(basename(path), target) == 0)
+        found(path);
 
-		while(read(fd , &de , sizeof(de)) == sizeof(de)) {
-			if (de.inum == 0)
-				continue;
+    if(st.type == T_DIR) {
+        int length = strlen(path);
 
-			// Skip "." and ".." to avoid cycles
-			if (strcmp(de.name , ".") == 0 || strcmp(de.name , "..") == 0)
-				continue;
+        if(length + 1 + DIRSIZ + 1 > sizeof(child)) {
+            fprintf(2, "find: path too long\n");
+            close(fd);
+            return;
+        }
 
-			memmove(ptr , de.name , DIRSIZ);
-			ptr[DIRSIZ] = 0;
-			find(buffer , name);
-		}
-	}
-	close(fd);
+        strcpy(child, path);
+        child[length] = '/';
+
+        int n;
+
+        while((n = read(fd, &de, sizeof(de))) ==  sizeof(de)) {
+            if(de.inum == 0) {
+                continue;
+            }
+
+            char name[DIRSIZ + 1];
+            memmove(name, de.name, DIRSIZ);
+            name[DIRSIZ] = '\0';
+
+            if(strcmp(name, ".") == 0 || strcmp(name, "..") == 0) {
+                continue;
+            }
+
+            strcpy(child + length + 1, name);  // Append entry name after '/'
+
+            find(child, target);
+        }
+
+        if(n != 0) {
+            fprintf(2, "find: directory read error\n");
+        }
+    }
+
+    close(fd);
 }
 
 int
