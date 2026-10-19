@@ -6,6 +6,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "vm.h"
+#include "syscall.h"
 
 uint64
 sys_exit(void)
@@ -109,4 +110,31 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+/* 
+  Restrict the calling process : reject the system calls in mask , expcet
+  + that open and exec are still allowed on the pasthname path
+  + The restrictions are inherited by children and only get tighter
+*/
+
+uint64 sys_interpose(void) {
+  struct sandbox *sb = &myproc()->sandbox;
+  int mask;
+  char path[MAXPATH];
+
+  argint(0 , &mask);
+  if (argstr(1 , path , MAXPATH) < 0)
+    return -1;
+
+
+  // Once open or exec is restricted, the allowed path may only staty the same or become "-"
+  if (sb -> mask & ((1 << SYS_open) | (1 << SYS_exec)) && 
+      strncmp(path , sb -> path , MAXPATH) != 0 &&
+      strncmp(path , "-" , MAXPATH) != 0)
+      return -1;
+
+  sb -> mask |= mask;
+  safestrcpy(sb -> path , path , sizeof(sb -> path));
+  return 0;
 }

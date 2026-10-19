@@ -164,6 +164,7 @@ freeproc(struct proc *p)
   p->sz = 0;
   p->pid = 0;
   p->name[0] = 0;
+  memset(&p -> sandbox , 0 , sizeof (p -> sandbox));
   p->chan = 0;
   p->killed = 0;
   p->xstate = 0;
@@ -288,6 +289,7 @@ kfork(void)
   np->cwd = idup(p->cwd);
 
   safestrcpy(np->name, p->name, sizeof(p->name));
+  np->sandbox = p->sandbox;
 
   pid = np->pid;
 
