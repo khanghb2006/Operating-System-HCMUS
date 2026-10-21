@@ -14,7 +14,6 @@ struct proc *initproc;
 
 int nextpid = 1;
 struct spinlock pid_lock;
-
 extern void forkret(void);
 static void freeproc(struct proc *p);
 
@@ -124,6 +123,7 @@ allocproc(void)
 found:
   p->pid = allocpid();
   p->state = USED;
+  p->interpose_mask = 0;
 
   // Allocate a trapframe page.
   if ((p->trapframe = (struct trapframe *)kalloc()) == 0) {
@@ -274,6 +274,7 @@ kfork(void)
     return -1;
   }
   np->sz = p->sz;
+  np->interpose_mask = p->interpose_mask;
 
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
