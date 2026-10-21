@@ -78,6 +78,12 @@ struct trapframe {
 
 enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
+// Restricttions set by interpose()
+struct sandbox {
+  uint mask;
+  char path[MAXPATH];
+};
+
 // Per-process state
 struct proc {
   struct spinlock lock;
@@ -100,7 +106,6 @@ struct proc {
   struct context context;      // swtch() here to run process
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
-  // Lab 2
-  char name[16];        // Process name (debugging)
-  uint interpose_mask;  // Bit n blocks syscall n.
+  char name[16];               // Process name (debugging)
+  struct sandbox sandbox; // Restriction set by interpose()
 };

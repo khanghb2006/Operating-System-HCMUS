@@ -123,7 +123,7 @@ allocproc(void)
 found:
   p->pid = allocpid();
   p->state = USED;
-  p->interpose_mask = 0;
+  memset(&p->sandbox, 0, sizeof(p->sandbox));
 
   // Allocate a trapframe page.
   if ((p->trapframe = (struct trapframe *)kalloc()) == 0) {
@@ -164,6 +164,7 @@ freeproc(struct proc *p)
   p->sz = 0;
   p->pid = 0;
   p->name[0] = 0;
+  memset(&p -> sandbox , 0 , sizeof (p -> sandbox));
   p->chan = 0;
   p->killed = 0;
   p->xstate = 0;
@@ -274,7 +275,6 @@ kfork(void)
     return -1;
   }
   np->sz = p->sz;
-  np->interpose_mask = p->interpose_mask;
 
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
@@ -289,6 +289,7 @@ kfork(void)
   np->cwd = idup(p->cwd);
 
   safestrcpy(np->name, p->name, sizeof(p->name));
+  np->sandbox = p->sandbox;
 
   pid = np->pid;
 

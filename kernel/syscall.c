@@ -131,9 +131,32 @@ static uint64 (*syscalls[])(void) = {
   [SYS_mkdir]   = sys_mkdir,
   [SYS_close]   = sys_close,
   [SYS_sync]    = sys_sync,
-  [SYS_interpose] sys_interpose,
+  [SYS_interpose] = sys_interpose,
   // clang-format on
 };
+
+/*
+  Return 1 if the sandbox of p rejects system call num. A masked open or exec is still aloowed 
+    on the pathname given to interpose() , which both take as their first arguments
+*/
+static int rejected(struct proc *p , int num) {
+  struct sandbox *sb = &p->sandbox;
+  char path[MAXPATH];
+
+  if (!(sb -> mask & (1 << num)))
+    return 0;
+
+  if (num != SYS_open && num != SYS_exec)
+    return 1;
+
+  if (strncmp(sb -> path , "-" , MAXPATH) == 0)
+    return 1;
+
+  if (argstr(0 , path , MAXPATH) < 0)
+    return 1;
+
+  return strncmp(sb -> path , path , MAXPATH) != 0;
+}
 
 void
 syscall(void)
@@ -142,15 +165,15 @@ syscall(void)
   struct proc *p = myproc();
 
   num = p->trapframe->a7;
-
   if (num > 0 && num < NELEM(syscalls) && syscalls[num]) {
-    if (num < 32 && (p->interpose_mask & (1U << num))) {
+    // use num to lookup the system call function for num call it
+    if (rejected(p , num)) 
       p->trapframe->a0 = -1;
-    } else {
-      p->trapframe->a0 = syscalls[num]();
-    }
-  } else {
+    else p->trapframe->a0 = syscalls[num]();
+  }
+  else {
     printk("%d %s: unknown sys call %d\n", p->pid, p->name, num);
     p->trapframe->a0 = -1;
   }
 }
+

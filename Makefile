@@ -206,15 +206,15 @@ UPROGS=\
 	$U/_sleep\
 	$U/_sixfive\
 	$U/_find\
-	$U/_sandbox\
-	$U/_sbtest\
 
 
 
 ifeq ($(LAB),syscall)
 UPROGS += \
 	$U/_attack\
-	$U/_secret
+	$U/_secret\
+	$U/_sandbox\
+	$U/_sbtest
 endif
 
 ifeq ($(LAB),traps)
