@@ -28,6 +28,8 @@ main(int argc, char *argv[])
       (secret[n] >= 'A' && secret[n] <= 'Z'))) 
         n++;
 
+    if (n == 0) continue; 
+
     secret[n] = 0;
     printf("%s\n", secret);
   }
