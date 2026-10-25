@@ -1,61 +1,59 @@
-Q1. Looking at the backtrace output, which function called syscall?
+Answers and Explanation
 
-The backtrace output shows that:
-- #0 syscall(): the current function where execute is paused for debugging
-- #1 0x0000000080001b18 in usertrap () at kernel/trap.c:68: the function that called syscall() is usertrap() which is at line 68 of kernel/trap.c
-- #2  0x0000003ffffff09c in ?? (): GDB cannot identify the function at this frame because unwiding across the trap boundary is limited
+Q1. Looking at the backtrace output, which function called syscall()?
 
-The call flow is: the user program make a system call using the ecall instruction -> the kernel handles the trap in usertrap() -> usertrap() call syscall() to choose appropriate handler
+The backtrace showed:
+- Frame 0: syscall(), the current function where execution was paused.
+- Frame 1: 0x0000000080001b18 in usertrap() at kernel/trap.c:68, identifying the caller of syscall().
+- Frame 2: 0x0000003ffffff09c in ?? (). GDB could not identify the function at this frame; unwinding across the trap boundary may be limited.
 
-So the answer is: The function usertrap() call syscall() at line 68 of kernel/trap.c
+The user program requests a system call using the ecall instruction. The trap-entry code transfers control to usertrap(), which calls syscall() to dispatch the request to the appropriate handler.
 
+Therefore, the function that called syscall() was usertrap(), at line 68 of kernel/trap.c in this build.
 
-Q2. What is the value of p->trapframe->a7 and what does that value represent? (Hint: look at user/initcode.S, the first user program xv6 starts.)
+Q2. What is the value of p->trapframe->a7, and what does it represent?
 
+The observed value of p->trapframe->a7 was 15. The process name was "init", and its PID was 1. In kernel/syscall.h, SYS_open is defined as 15.
 
-The output shows that:
-- p->trapframe->a7 is 15
-- p->name is "init" and p->pid is 1
-- In kernel/syscall.h, SYS_open is defined as 15
+The assignment’s hint refers to user/initcode.S, which is absent from the xv6 version used here. In this version, forkret() in kernel/proc.c calls kexec("/init", ...) directly. The first system call made by the resulting init program is open("console", O_RDWR) in user/init.c. This explains why the observed system-call number is SYS_open = 15, rather than SYS_exec = 7 as in versions that start user execution through initcode.S.
 
-The value of p->trapframe->a7 is 15, which represents the open system call. The a7 register stores the system call number, which the kernel uses to select the appropriate handler
-
+Therefore, the captured request was the open system call. The saved a7 register contains the system-call number, which the kernel uses to select the appropriate handler.
 
 Q3. What was the previous mode that the CPU was in?
 
-The output shows that:
-- The value of sstatus is 0x200000022
-- The SPP bit (bit 8) is 0, indicating that the previous privilege mode was User mode
+The observed value of sstatus was 0x200000022. The SPP bit, at bit position 8, was zero, indicating that the previous privilege mode was User mode.
 
-So the answer is: The CPU was previously in User mode. The user process executed the ecall instruction, causing the CPU to trap into Supervisor mode to handle the system call
-
+The user process executed ecall, causing the CPU to trap into Supervisor mode to handle the system call. Thus, the CPU was previously in User mode.
 
 Q4. Write down the assembly instruction the kernel is panicking at. Which register corresponds to the variable num?
 
-The output shows that:
-- The panic reports sepc = 0x80001d6e
-- The instruction at this address in kernel/kernel.asm is lw a3,0(zero)
-- The instruction corresponds to the C statement num = *(int *)0;
+The panic reported sepc = 0x80001d6e. The instruction at this address in kernel/kernel.asm was:
 
-So the answer is: The kernel panics ar the instruction lw a3,0(zero), located at address 0x80001d6e. It attempts to load a 32-bit word from address 0 into register a3. The register corresponding to num at this instruction is a3.
+lw a3,0(zero)
 
+This instruction corresponds to the injected C statement:
 
-Q5. Why does the kernel crash? (Hint: look at Figure 3-3 in the xv6 book; is address 0 mapped in the kernel address space? Relate your answer to the values of scause and stval printed above.)
+num = *(int *)0;
 
-The output shows that:
-- scause is 0xd (13), indicating a load page fault.
-- stval is 0x0, identifying the faulting virtual address.
-- The instruction at sepc = 0x80001d6e is lw a3,0(zero).
+It attempts to load a 32-bit word from address zero into register a3. Therefore, a3 is the destination register corresponding to num at this instruction in this build.
 
-So the answer is: The kernel crashes because num = *(int *)0; attempts to read from virtual address 0, which is not mapped in the kernel page table. This causes a load page fault (scause = 13), with stval = 0 identifying the faulting address. Since the fault occurs in the kernel and is not recovered from, kerneltrap() calls panic().
+Q5. Why does the kernel crash?
 
+The panic output reported:
+- scause = 0xd (13), indicating a load page fault.
+- stval = 0x0, identifying the faulting virtual address.
+- sepc = 0x80001d6e, identifying the instruction lw a3,0(zero).
 
-Q6. What is the name of the process that was running when the kernel panicked? What is its process id (pid)?
+The statement num = *(int *)0; attempts to read from virtual address zero, which is not mapped in the kernel page table. This causes a load page fault, with stval = 0 identifying the invalid address.
 
-The output shows that:
-- Execution stops at 0x80001d6e, immediately before the faulting instruction lw a3,0(zero).
-- p->name is "init".
-- p->pid is 1.
-Answer:
+Since this fault occurs in the kernel and is not recovered from, kerneltrap() calls panic().
 
-The process running when the kernel panicked was init, with process ID 1.
+Q6. What is the name of the process that was running when the kernel panicked? What is its process ID?
+
+GDB stopped at 0x80001d6e, with the program counter pointing to the faulting instruction lw a3,0(zero). The breakpoint stopped execution before that instruction executed.
+
+Inspecting p->name and p->pid showed:
+- Process name: "init".
+- Process ID: 1.
+
+Therefore, the process running when the kernel panicked was init, with PID 1.
