@@ -107,11 +107,36 @@ sys_vmprint(void)
 #endif
 
 #ifdef LAB_PGTBL
-int
-sys_pgaccess(void)
-{
-  // lab pgtbl: your code here.
-  return 0;
+
+#define PGACCESSES_MAXPAGES 1024 // upper limit of pages scanned per call
+
+/*
+  pageaccess(base , npages , mask) : report which of npages user pages
+  starting at base were accessed. Bit i of mask stand for page i
+*/
+
+int sys_pgaccess(void) {
+  uint64 base; // va of the first page to check
+  int npages; // number of pages to check
+  uint64 mask; // user address of result bitmask
+  char kmask[PGACCESSES_MAXPAGES / 8]; // kernel buffer for result bitmask
+  struct proc *p = myproc();
+
+  argaddr(0, &base);
+  argint(1, &npages);
+  argaddr(2, &mask);
+
+  if (npages < 0 || npages > PGACCESSES_MAXPAGES) return -1;
+
+  memset(kmask , 0 , sizeof(kmask));
+  for (int i = 0; i < npages; i++) {
+    int accessed = uvmaccessed(p->pagetable, base + (uint64)i * PGSIZE);
+    if (accessed < 0) return -1;
+    if (accessed) kmask[i / 8] |= (1 << (i % 8));
+  }
+
+  // One bit per page, rounded up to whole bytes
+  return copyout(p->pagetable, p->sz, mask, kmask, (npages + 7) / 8);
 }
 #endif
 

@@ -378,6 +378,25 @@ uvmclear(pagetable_t pagetable, uint64 va)
   *pte &= ~PTE_U;
 }
 
+/*
+  Test and clear the accessed bit of user page holding
+  Return 1 if the page was accessed since the last code, otherwise return 0.
+  -1 if va is not a mapped user page
+*/
+int uvmaccessed(pagetable_t pagetable , uint64 va) {
+  
+  if (va >= MAXVA) return -1; // walk() panic on address beyond MAXVA
+  
+  pte_t *pte;
+  pte = walk(pagetable , va , 0);
+  if (pte == 0 || (*pte & PTE_V) == 0 || (*pte & PTE_U) == 0) return -1;
+
+  if ((*pte & PTE_A) == 0) return 0;
+
+  *pte &= ~PTE_A; // reset so the next call only sees new accesses
+  return 1;
+}
+
 // Copy from kernel to user.
 // Copy len bytes from src to virtual address dstva in a given page table.
 // Return 0 on success, -1 on error.
