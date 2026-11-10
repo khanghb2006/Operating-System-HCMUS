@@ -1,0 +1,78 @@
+Q1:
+
+Mỗi dòng bên dưới mô tả vai trò của trang và các cờ trong PTE của trang đó. Để đọc perm, đổi từng chữ số hex sang 4 bit rồi đếm vị trí từ phải sang trái, bắt đầu từ 0.
+ 
+Bảng cờ (vị trí bit: cờ - ý nghĩa)
+Bit 7: D - Đã ghi
+Bit 6: A - Đã truy cập
+Bit 5: G - Global
+Bit 4: U - Cho phép user truy cập
+Bit 3: X - Thực thi
+Bit 2: W - Ghi
+Bit 1: R - Đọc
+Bit 0: V - Hợp lệ
+ 
+Danh sách các trang:
+
+Dòng 1 | 0x0 | 0x5B -> 0101 1011 -> V R X U A | Trang đầu của vùng mã lệnh pgtbltest. Ánh xạ hợp lệ, user được đọc và thực thi, không được ghi. A = 1 cho biết trang đã được truy cập.
+ 
+Dòng 2 | 0x1000 | 0x1B -> 0001 1011 -> V R X U | Trang mã lệnh tiếp theo. Ánh xạ hợp lệ, user được đọc và thực thi, không được ghi. A = 0 tại thời điểm in.
+ 
+Dòng 3 | 0x2000 | 0x17 -> 0001 0111 -> V R W U | Trang dữ liệu của chương trình. Ánh xạ hợp lệ, user được đọc và ghi, không được thực thi. A và D đều bằng 0 tại thời điểm in.
+ 
+Dòng 4 | 0x3000 | 0x07 -> 0000 0111 -> V R W | Guard page ngay dưới user stack. Trang có ánh xạ hợp lệ và có cờ đọc/ghi, nhưng U = 0 nên truy cập từ user mode sẽ gây page fault.
+ 
+Dòng 5 | 0x4000 | 0xD7 -> 1101 0111 -> V R W U A D | Trang user stack. Ánh xạ hợp lệ, user được đọc và ghi, không được thực thi. A = 1 và D = 1 cho biết trang đã được truy cập và ghi.
+ 
+Dòng 6 | 0x5000 | 0x00 -> 0000 0000 -> không có cờ bật | Trang chưa được ánh xạ (pte = 0).
+ 
+Dòng 7 | 0x6000 | 0x00 -> 0000 0000 -> không có cờ bật | Trang chưa được ánh xạ (pte = 0).
+ 
+Dòng 8 | 0x7000 | 0x00 -> 0000 0000 -> không có cờ bật | Trang chưa được ánh xạ (pte = 0).
+ 
+Dòng 9 | 0x8000 | 0x00 -> 0000 0000 -> không có cờ bật | Trang chưa được ánh xạ (pte = 0).
+ 
+Dòng 10 | 0x9000 | 0x00 -> 0000 0000 -> không có cờ bật | Trang chưa được ánh xạ (pte = 0).
+ 
+Dòng 11 | 0x3FFFFF6000 | 0x00 -> 0000 0000 -> không có cờ bật | Trang chưa được ánh xạ (pte = 0).
+ 
+Dòng 12 | 0x3FFFFF7000 | 0x00 -> 0000 0000 -> không có cờ bật | Trang chưa được ánh xạ (pte = 0).
+ 
+Dòng 13 | 0x3FFFFF8000 | 0x00 -> 0000 0000 -> không có cờ bật | Trang chưa được ánh xạ (pte = 0).
+ 
+Dòng 14 | 0x3FFFFF9000 | 0x00 -> 0000 0000 -> không có cờ bật | Trang chưa được ánh xạ (pte = 0).
+ 
+Dòng 15 | 0x3FFFFFA000 | 0x00 -> 0000 0000 -> không có cờ bật | Trang chưa được ánh xạ (pte = 0).
+ 
+Dòng 16 | 0x3FFFFFB000 | 0x00 -> 0000 0000 -> không có cờ bật | Trang chưa được ánh xạ (pte = 0).
+ 
+Dòng 17 | 0x3FFFFFC000 | 0x00 -> 0000 0000 -> không có cờ bật | Trang chưa được ánh xạ (pte = 0).
+ 
+Dòng 18 | 0x3FFFFFD000 | 0x00 -> 0000 0000 -> không có cờ bật | Trang chưa được ánh xạ (pte = 0).
+ 
+Dòng 19 | 0x3FFFFFE000 | 0xC7 -> 1100 0111 -> V R W A D | Trapframe, nơi lưu và khôi phục thanh ghi của tiến trình khi xử lý trap. Ánh xạ hợp lệ, supervisor được đọc và ghi, không được thực thi. U = 0 chặn user truy cập. A và D đều bật.
+ 
+Dòng 20 | 0x3FFFFFF000 | 0x4B -> 0100 1011 -> V R X A | Trampoline, chứa mã chuyển tiếp khi vào và ra khỏi trap. Ánh xạ hợp lệ, supervisor được đọc và thực thi, không được ghi. U = 0 chặn user truy cập. A đang bật.
+
+
+Q2:
+
+2.1. Các trang lá trong vmprint() chứa gì và có quyền gì?
+Với 7 trang lá trong ví dụ, R là đọc, W là ghi, X là thực thi, còn U cho phép truy cập từ user mode theo các quyền đó.
+- 0x0: trang mã chương trình đầu tiên. Quyền RXU: user đọc và thực thi được, cấm ghi.
+- 0x1000: trang mã chương trình tiếp theo. Quyền RXU: user đọc và thực thi được, cấm ghi.
+- 0x2000: dữ liệu chương trình, như biến toàn cục. Quyền RWU: user đọc và ghi được, cấm thực thi.
+- 0x3000: guard page dưới stack, dùng để phát hiện stack tràn xuống. Quyền RW: user không truy cập được vì thiếu U.
+- 0x4000: user stack, chứa dữ liệu phục vụ việc gọi hàm. Quyền RWU: user đọc và ghi được, cấm thực thi.
+- 0x3FFFFFE000: trapframe, nơi lưu thanh ghi user khi vào trap. Quyền RW: supervisor đọc và ghi được, user không truy cập được.
+- 0x3FFFFFF000: trampoline, chứa mã vào và thoát trap. Quyền RX: supervisor đọc và thực thi được, cấm ghi, user không truy cập được.
+  
+2.2. vmprint() liên quan gì tới print_pgtbl() ở Task 1?
+Ghép trang lá theo cùng địa chỉ ảo (VA). Ví dụ, VA 0x3000 ở Task 1 có perm = 0x07, tức V + R + W. vmprint() hiển thị quyền đó thành RW. Cả hai đều cho thấy guard page có ánh xạ hợp lệ nhưng user không truy cập được vì thiếu U.
+Khác biệt: Task 1 tra 10 VA đầu và 10 VA cuối, nên vẫn in cả địa chỉ chưa ánh xạ như 0x5000 với pte = 0. Task 2 duyệt cả cây, chỉ in các PTE hợp lệ (gồm cả nhánh và lá), nên bỏ qua dòng 0x5000 đó.
+
+
+Q3:
+
+Ngoài ugetpid() system call khác của xv6 có thể nhanh hơn có thể chạy nhanh hơn bằng cách cho user đọc dữ liệu từ một trang nhớ dùng chung với kernel là: uptime() 
+Bởi vì uptime() cũng có thể được tăng tốc bằng cách công bố số tick kể từ khi hệ thống khởi động trong vùng nhớ chỉ đọc đối với user. Kernel cập nhật giá trị khi xử lý timer interrupt. Một hàm phía user có thể đọc giá trị đó trực tiếp mà không cần gọi syscall. Khác với PID, số tick thay đổi liên tục và dùng chung cho toàn hệ thống, nên có thể dùng một trang vật lý riêng được ánh xạ chỉ đọc vào mọi process để kernel chỉ cần cập nhật một nơi.

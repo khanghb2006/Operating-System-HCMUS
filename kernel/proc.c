@@ -135,6 +135,18 @@ found:
   p->pincpu = 0;
 #endif
 
+  // Cấp trang chứa PID trước khi tạo page table cho process.
+  p->usyscall = (struct usyscall *)kalloc();
+  if (p->usyscall == 0) {
+    freeproc(p);
+    release(&p->lock);
+    return 0;
+  }
+
+  // User đọc được cả trang, nên xóa dữ liệu cũ trước khi ghi PID.
+  memset(p->usyscall, 0, PGSIZE);
+  p->usyscall->pid = p->pid;
+
   // An empty user page table.
   p->pagetable = proc_pagetable(p);
   if (p->pagetable == 0) {
@@ -163,6 +175,13 @@ freeproc(struct proc *p)
   p->trapframe = 0;
   if (p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
+
+  // Khi dọn chính process, trả trang chứa PID về bộ cấp phát.
+  if (p->usyscall != 0)
+    kfree((void *)p->usyscall);
+  // Xóa con trỏ để slot struct proc có thể được tái sử dụng.
+  p->usyscall = 0;
+
   p->pagetable = 0;
   p->sz = 0;
   p->pid = 0;
@@ -204,6 +223,17 @@ proc_pagetable(struct proc *p)
     return 0;
   }
 
+  // Map VA USYSCALL của process tới trang chứa PID.
+  // PTE_U cho user truy cập, PTE_R cho đọc. W và X đều tắt.
+  if (mappages(pagetable, USYSCALL, PGSIZE,
+              (uint64)p->usyscall, PTE_R | PTE_U) < 0) {
+    // Map thất bại. Gỡ các mapping đã tạo trước đó để uvmfree()
+    // có thể giải phóng các bảng trong cây page table.
+    uvmunmap(pagetable, TRAPFRAME, 1, 0);
+    uvmunmap(pagetable, TRAMPOLINE, 1, 0);
+    uvmfree(pagetable, 0);
+    return 0;
+  }
 
   return pagetable;
 }
@@ -215,6 +245,9 @@ proc_freepagetable(pagetable_t pagetable, uint64 sz)
 {
   uvmunmap(pagetable, TRAMPOLINE, 1, 0);
   uvmunmap(pagetable, TRAPFRAME, 1, 0);
+  // Đối số cuối là 0: chỉ gỡ mapping, giữ lại trang chứa PID.
+  // exec() có thể bỏ page table cũ và map lại cùng trang vào page table mới.
+  uvmunmap(pagetable, USYSCALL, 1, 0);
   uvmfree(pagetable, sz);
 }
 

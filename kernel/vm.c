@@ -146,12 +146,61 @@ walkaddr(pagetable_t pagetable, uint64 va)
   return pa;
 }
 
-
+// m1hdat
 #if defined(LAB_PGTBL) || defined(SOL_MMAP) || defined(SOL_COW)
 void
 vmprint(pagetable_t pagetable)
 {
-  // your code here
+  pagetable_t tables[3];
+  uint64 bases[3];
+  int next[3];
+  int level = 2;
+
+  tables[2] = pagetable;
+  bases[2] = 0;
+  next[2] = 0;
+
+  printk("page table %p\n", (void *)pagetable);
+
+  while (level <= 2) {
+    if (next[level] == 512) {
+      level++;
+      continue;
+    }
+
+    int i = next[level]++;
+    pte_t pte = tables[level][i];
+    if ((pte & PTE_V) == 0)
+      continue;
+
+    uint64 va = bases[level] | ((uint64)i << PXSHIFT(level));
+    uint64 pa = PTE2PA(pte);
+    int leaf = (pte & (PTE_R | PTE_W | PTE_X)) != 0;
+
+    for (int depth = 0; depth < 3 - level; depth++)
+      printk(" ..");
+
+    printk("%p: pte %p pa %p", (void *)va, (void *)pte, (void *)pa);
+    if (leaf) {
+      printk(" ");
+      if (pte & PTE_R)
+        printk("R");
+      if (pte & PTE_W)
+        printk("W");
+      if (pte & PTE_X)
+        printk("X");
+      if (pte & PTE_U)
+        printk("U");
+    }
+    printk("\n");
+
+    if (!leaf && level > 0) {
+      level--;
+      tables[level] = (pagetable_t)pa;
+      bases[level] = va;
+      next[level] = 0;
+    }
+  }
 }
 #endif
 
