@@ -98,29 +98,31 @@ kvminithart()
 //   21..29 -- 9 bits of level-1 index.
 //   12..20 -- 9 bits of level-0 index.
 //    0..11 -- 12 bits of byte offset within the page.
-pte_t *
-walk(pagetable_t pagetable, uint64 va, int alloc)
-{
-  if (va >= MAXVA)
-    panic("walk");
+static pte_t* walklevel(pagetable_t pagetable, uint64 va , int alloc, int stop) {
+  if (va >= MAXVA) panic("walk");
 
-  for (int level = 2; level > 0; level--) {
+  for (int level = 2; level > stop; level--) {
     pte_t *pte = &pagetable[PX(level, va)];
     if (*pte & PTE_V) {
       pagetable = (pagetable_t)PTE2PA(*pte);
-#ifdef LAB_PGTBL
-      if (PTE_LEAF(*pte)) {
-        return pte;
-      }
-#endif
-    } else {
-      if (!alloc || (pagetable = (pde_t *)kalloc()) == 0)
+
+      #ifdef LAB_PGTBL
+        if (PTE_LEAF(*pte)) return pte;
+      #endif
+    }
+    else {
+      if (!alloc || (pagetable = (pde_t*)kalloc()) == 0) 
         return 0;
-      memset(pagetable, 0, PGSIZE);
-      *pte = PA2PTE(pagetable) | PTE_V;
+
+      memset(pagetable , 0 , PGSIZE);
+      *pte = PA2PTE((uint64)pagetable) | PTE_V;
     }
   }
-  return &pagetable[PX(0, va)];
+  return &pagetable[PX(stop , va)];
+}
+
+pte_t* walk(pagetable_t  pageable , uint64 va , int alloc) {
+  return walklevel(pageable , va , alloc , 0);
 }
 
 // Look up a virtual address, return the physical address,
@@ -205,13 +207,37 @@ vmprint(pagetable_t pagetable)
 #endif
 
 
+static int superfits(uint64 va , uint64 pa , uint64 left) {
+  return (va % SUPERPGSIZE) == 0 && (pa % SUPERPGSIZE) == 0 && left >= SUPERPGSIZE;
+}
+
+static int kvmmappages(pagetable_t kpgtbl, uint64 va, uint64 size, uint64 pa, int perm) {
+  uint64 end = va + size;
+  uint64 pgsz;
+
+  if (va % PGSIZE != 0 || size % PGSIZE != 0 || size == 0)
+    panic("kvmmappages : bad range");
+
+  for (; va < end; va += pgsz, pa += pgsz) {
+    int super = superfits(va , pa , end - va);
+    pte_t *pte = walklevel(kpgtbl, va, 1, super);
+
+    if (pte == 0) return -1;
+    if (*pte & PTE_V) panic("kvmmappages: remap");
+
+    *pte = PA2PTE(pa) | perm | PTE_V;
+    pgsz = super ? SUPERPGSIZE : PGSIZE;
+  }
+  return 0;
+}
+
 // add a mapping to the kernel page table.
 // only used when booting.
 // does not flush TLB or enable paging.
 void
 kvmmap(pagetable_t kpgtbl, uint64 va, uint64 pa, uint64 sz, int perm)
 {
-  if (mappages(kpgtbl, va, sz, pa, perm) != 0)
+  if (kvmmappages(kpgtbl, va, sz, pa, perm) != 0)
     panic("kvmmap");
 }
 
