@@ -76,3 +76,12 @@ Q3:
 
 Ngoài ugetpid() system call khác của xv6 có thể nhanh hơn có thể chạy nhanh hơn bằng cách cho user đọc dữ liệu từ một trang nhớ dùng chung với kernel là: uptime() 
 Bởi vì uptime() cũng có thể được tăng tốc bằng cách công bố số tick kể từ khi hệ thống khởi động trong vùng nhớ chỉ đọc đối với user. Kernel cập nhật giá trị khi xử lý timer interrupt. Một hàm phía user có thể đọc giá trị đó trực tiếp mà không cần gọi syscall. Khác với PID, số tick thay đổi liên tục và dùng chung cho toàn hệ thống, nên có thể dùng một trang vật lý riêng được ánh xạ chỉ đọc vào mọi process để kernel chỉ cần cập nhật một nơi.
+
+Q4:
+
+Giải pháp dùng 95 PTE superpage (đếm bằng ksupernpte; kernel còn lại 579 PTE mức 0).
+- PLIC: 64 MB, bắt đầu ở 0x0C000000 đã căn 2 MB, nên dùng 32 superpage.
+- RAM (data): từ 0x80200000 đến 0x88000000 (126 MB), dùng 63 superpage. Phần 0x80008000 đến 0x80200000 chưa căn 2 MB nên vẫn dùng trang 4 KB.
+Tổng: 32 + 63 = 95 superpage.
+
+Mỗi PTE superpage thay cho 512 PTE mức 0, tức một trang bảng trang mức 0 (4096 byte). Vậy 95 superpage tiết kiệm 95 trang bảng trang mức 0, tức 95 x 4096 = 389120 byte (380 KB), tương ứng 95 x 512 = 48640 PTE mức 0.
