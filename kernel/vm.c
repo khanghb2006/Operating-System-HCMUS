@@ -193,6 +193,9 @@ vmprint(pagetable_t pagetable)
         printk("X");
       if (pte & PTE_U)
         printk("U");
+
+      if (level == 1) // a level-1 leaf maps 2 MB
+        printk(" super");
     }
     printk("\n");
 
